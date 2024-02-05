@@ -1,2 +1,3 @@
 py312/
 .ipynb_checkpoints/
+__pycache__/
