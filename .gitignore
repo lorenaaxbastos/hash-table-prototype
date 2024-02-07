@@ -1,3 +1,6 @@
 py312/
 .ipynb_checkpoints/
 __pycache__/
+.pytest_cache/
+py312-htp/
+__pycache__/
