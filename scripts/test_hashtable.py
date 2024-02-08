@@ -1,6 +1,14 @@
 from hash_table import HashTable
 import pytest
-from pytest_unordered import unordered
+from unittest.mock import patch
+from collections import deque
+
+def test_should_detect_hash_collision():
+    assert hash("foobar") not in [1, 2, 3]
+    with patch("builtins.hash", side_effect=[1, 2, 3]):
+        assert hash("foobar") == 1
+        assert hash("foobar") == 2
+        assert hash("foobar") == 3
 
 @pytest.fixture
 def hashtable():
@@ -34,7 +42,7 @@ def test_should_not_create_hashtable_with_negative_capacity():
         HashTable(capacity=-100)
 
 def test_should_create_empty_item_slots():
-    assert HashTable(capacity=3)._slots == [None, None, None]
+    assert HashTable(capacity=3)._buckets == [deque()] * 3
 
 def test_should_insert_key_value_pairs():
     hashtable = HashTable(capacity=100)
@@ -115,17 +123,17 @@ def test_should_update_value(hashtable):
     assert len(hashtable) == 3
 
 def test_should_return_pairs(hashtable):
-    assert hashtable.items == {
+    assert hashtable.items == [
         ("name", "Lorena"),
         (55, 34.99),
-        (False, True)}
+        (False, True)]
 
-def test_should_return_values(hashtable):
-    assert unordered(hashtable.values) == ["Lorena", 34.99, True]  
-    
 def test_should_return_keys(hashtable):
-    assert hashtable.keys == {"name", 55, False}
-
+    assert hashtable.keys == ["name", 55, False]
+    
+def test_should_return_values(hashtable):
+    assert hashtable.values == ["Lorena", 34.99, True]  
+    
 def test_should_return_copy_of_pairs(hashtable):
     assert hashtable.items is not hashtable.items
 
@@ -146,16 +154,16 @@ def test_should_return_copy_of_values(hashtable):
     assert hashtable.values is not hashtable.values
 
 def test_should_get_keys_of_empty_hash_table():
-    assert HashTable(capacity=100).keys == set()
+    assert HashTable(capacity=100).keys == []
 
 def test_should_return_copy_of_keys(hashtable):
     assert hashtable.keys is not hashtable.keys
 
 def test_should_convert_to_dict(hashtable):
     dictionary = dict(hashtable.items)
-    assert set(dictionary.items()) == hashtable.items
-    assert set(dictionary.keys()) == hashtable.keys
-    assert list(dictionary.values()) == unordered(hashtable.values)
+    assert list(dictionary.items()) == hashtable.items
+    assert list(dictionary.keys()) == hashtable.keys
+    assert list(dictionary.values()) == hashtable.values
 
 def test_should_iterate_over_items(hashtable):
     for key, value in hashtable.items:
@@ -183,3 +191,99 @@ def test_should_use_literal_for_str(hashtable):
         "{False: True, 'name': 'Lorena', 55: 34.99}",
         "{False: True, 55: 34.99, 'name': 'Lorena'}",
     }
+
+def test_should_create_hashtable_from_dict():
+    dictionary = {"name": "Lorena", 55: 34.99, False: True}
+    hashtable = HashTable.from_dict(dictionary)
+
+    assert hashtable.capacity == len(dictionary) * 2
+    assert hashtable.items == list(dictionary.items())
+    assert hashtable.keys == list(dictionary.keys())
+    assert hashtable.values == list(dictionary.values())
+
+def test_should_create_hashtable_from_dict_with_custom_capacity():
+    dictionary = {"name": "Lorena", 55: 34.99, False: True}
+    hashtable = HashTable.from_dict(dictionary, capacity=100)
+    assert hashtable.capacity == 100
+    assert hashtable.items == list(dictionary.items())
+    assert hashtable.keys == list(dictionary.keys())
+    assert hashtable.values == list(dictionary.values())
+
+def test_should_have_canonical_string_representation(hashtable):
+    assert repr(hashtable) in {
+        "HashTable.from_dict({'name': 'Lorena', 55: 34.99, False: True})",
+        "HashTable.from_dict({'name': 'Lorena', False: True, 55: 34.99})",
+        "HashTable.from_dict({55: 34.99, 'name': 'Lorena', False: True})",
+        "HashTable.from_dict({55: 34.99, False: True, 'name': 'Lorena'})",
+        "HashTable.from_dict({False: True, 'name': 'Lorena', 55: 34.99})",
+        "HashTable.from_dict({False: True, 55: 34.99, 'name': 'Lorena'})",
+    }
+
+def test_should_compare_equal_to_itself(hashtable):
+    assert hashtable == hashtable
+
+def test_should_compare_equal_to_copy(hashtable):
+    assert hashtable is not hashtable.copy()
+    assert hashtable == hashtable.copy()
+
+def test_should_compare_equal_different_key_value_order():
+    h1 = HashTable.from_dict({"a": 1, "b": 2, "c": 3})
+    h2 = HashTable.from_dict({"a": 1, "b": 2, "c": 3})
+    assert h1 == h2
+
+def test_should_compare_unequal(hashtable):
+    other = HashTable.from_dict({"a": 1, "b": 2, "c": 3})
+    assert hashtable != other 
+
+def test_should_compare_unequal_another_data_type(hashtable):
+    assert hashtable != 42
+
+def test_should_copy_key_values_pairs_capacity(hashtable):
+    copy = hashtable.copy()
+
+    assert copy is not hashtable
+    assert copy.items == hashtable.items
+    assert copy.keys == hashtable.keys
+    assert copy.values == hashtable.values
+    assert copy.capacity == hashtable.capacity
+    
+
+def test_should_compare_equal_different_capacity():
+    dictionary = {"a": 1, "b": 2, "c": 3}
+    h1 = HashTable.from_dict(dictionary, capacity=100)
+    h2 = HashTable.from_dict(dictionary, capacity=300)
+
+    assert h1 == h2
+
+def test_should_empty_populated_hashtable(hashtable):
+    assert hashtable.capacity == 100
+    assert len(hashtable) == 3
+
+    hashtable.clear()
+    
+    assert hashtable.capacity == 100
+    assert len(hashtable) == 0
+
+def test_should_update_hashtable_with_items_from_dict(hashtable):
+    assert len(hashtable) == 3
+    assert hashtable.items == [
+        ("name", "Lorena"),
+        (55, 34.99),
+        (False, True)]
+    assert hashtable.keys == ["name", 55, False]
+    assert hashtable.values == ["Lorena", 34.99, True]
+    assert hashtable.capacity == 100
+
+    dictionary = {"age": 30, "email": "lorenaax.bastos@hotmail.com"}
+    hashtable.update(dictionary)
+
+    assert len(hashtable) == 5
+    assert hashtable.items == [
+        ("name", "Lorena"),
+        (55, 34.99),
+        (False, True),
+        ("age", 30),
+        ("email", "lorenaax.bastos@hotmail.com")]
+    assert hashtable.keys == ["name", 55, False, "age", "email"]
+    assert hashtable.values == ["Lorena", 34.99, True, 30, "lorenaax.bastos@hotmail.com"]
+    assert hashtable.capacity == 100
